@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
+import uuid
 
-app = FastAPI(title="2D Animated Product Video API")
+app = FastAPI(title="Custom Welded Steel Tubing API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,35 +14,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Review(BaseModel):
-    id: int
-    title: str
-    status: str
-    score: float
-    timestamp: str
-    theme_preference: str = "light"
+class Order(BaseModel):
+    order_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    cad_file_hash: str
+    material_spec: str
+    tolerance_threshold: float
+    status: str = "Pending"
+    budget_allocation: float
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-# In-memory seed data
-db = [
-    {"id": 1, "title": "Intro Animation", "status": "completed", "score": 9.5, "timestamp": "2023-10-27T10:00:00Z", "theme_preference": "light"},
-    {"id": 2, "title": "Product Showcase", "status": "in-progress", "score": 8.2, "timestamp": "2023-10-27T11:30:00Z", "theme_preference": "dark"}
-]
+# In-memory storage
+db = []
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 @app.get("/api/analytics")
 def get_analytics():
-    return {"total_items": len(db), "average_score": sum(item['score'] for item in db) / len(db) if db else 0}
+    return {"total_orders": len(db), "active_fabrication": len([o for o in db if o.status == "Fabricating"])}
 
-@app.post("/api/reviews")
-def create_review(review: Review):
-    db.append(review.dict())
-    return review
+@app.post("/api/orders/submit", status_code=status.HTTP_201_CREATED)
+def submit_order(order: Order):
+    db.append(order)
+    return {"order_id": order.order_id, "message": "Order submitted successfully"}
 
-@app.patch("/api/theme")
-def update_theme(theme: str):
-    if theme not in ["light", "dark"]:
-        raise HTTPException(status_code=400, detail="Invalid theme")
-    return {"message": f"Theme updated to {theme}"}
+@app.get("/api/orders/{id}/status")
+def get_order_status(id: str):
+    order = next((o for o in db if o.order_id == id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"order_id": order.order_id, "status": order.status}
