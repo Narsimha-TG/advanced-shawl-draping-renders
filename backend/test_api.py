@@ -4,28 +4,40 @@ from main import app
 
 client = TestClient(app)
 
-def test_get_hotels():
-    response = client.get("/api/v1/hotels")
+def test_get_site_config():
+    response = client.get("/api/v1/site-config")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
-def test_create_reservation_success():
+def test_post_lead_capture_success():
     payload = {
-        "property_id": "1",
-        "check_in_date": "2023-12-01",
-        "check_out_date": "2023-12-05",
-        "guest_details": {"name": "John Doe", "email": "john@example.com"}
+        "name": "John Doe",
+        "email": "john@example.com",
+        "property_interest": "Luxury Villa"
     }
-    response = client.post("/api/v1/reservations", json=payload)
-    assert response.status_code == 201
-    assert "id" in response.json()
-
-def test_process_payment():
-    payload = {"reservation_id": "test-id", "amount": 1200}
-    response = client.post("/api/v1/payments/process", json=payload)
+    response = client.post("/api/v1/lead-capture", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
-def test_get_nonexistent_reservation():
-    response = client.get("/api/v1/reservations/invalid-uuid")
+def test_patch_ui_theme_success():
+    payload = {
+        "button_id": "primary",
+        "hex_color_code": "#ff0000",
+        "hover_state_color": "#cc0000",
+        "section_anchor": "#contact",
+        "is_active": True
+    }
+    response = client.patch("/api/v1/ui-theme", json=payload)
+    assert response.status_code == 200
+    assert response.json()["data"]["hex_color_code"] == "#ff0000"
+
+def test_patch_ui_theme_not_found():
+    payload = {
+        "button_id": "non-existent",
+        "hex_color_code": "#000000",
+        "hover_state_color": "#000000",
+        "section_anchor": "#",
+        "is_active": True
+    }
+    response = client.patch("/api/v1/ui-theme", json=payload)
     assert response.status_code == 404

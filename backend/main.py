@@ -1,57 +1,46 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
-from datetime import date
-import uuid
 
-app = FastAPI(title="Luxury Hotel Booking API")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
 
-# In-memory data store
-hotels = [
-    {"id": "1", "property_name": "The Grand Azure", "room_type": "Suite", "price_per_night": 1200, "availability_status": True},
-    {"id": "2", "property_name": "Midnight Palms", "room_type": "Villa", "price_per_night": 2500, "availability_status": True}
-]
+class ThemeConfig(BaseModel):
+    button_id: str
+    hex_color_code: str
+    hover_state_color: str
+    section_anchor: str
+    is_active: bool
 
-reservations = {}
+class LeadCapture(BaseModel):
+    name: str
+    email: str
+    property_interest: str
 
-class Reservation(BaseModel):
-    property_id: str
-    check_in_date: date
-    check_out_date: date
-    guest_details: dict
+# In-memory seed data
+theme_db = {
+    "primary": {"button_id": "primary", "hex_color_code": "#0056b3", "hover_state_color": "#004494", "section_anchor": "#contact", "is_active": True}
+}
 
-@app.get("/api/v1/hotels")
-def get_hotels():
-    return hotels
+@app.get("/api/v1/site-config")
+def get_site_config():
+    return list(theme_db.values())
 
-@app.get("/api/v1/hotels/{id}")
-def get_hotel(id: str):
-    hotel = next((h for h in hotels if h["id"] == id), None)
-    if not hotel:
-        raise HTTPException(status_code=404, detail="Property not found")
-    return hotel
+@app.post("/api/v1/lead-capture")
+def capture_lead(lead: LeadCapture):
+    # Logic to process lead (e.g., send email or save to DB)
+    return {"status": "success", "message": "Lead captured successfully"}
 
-@app.post("/api/v1/reservations", status_code=status.HTTP_201_CREATED)
-def create_reservation(res: Reservation):
-    res_id = str(uuid.uuid4())
-    reservations[res_id] = {**res.dict(), "id": res_id, "payment_status": "pending"}
-    return {"id": res_id, "status": "created"}
-
-@app.get("/api/v1/reservations/{id}")
-def get_reservation(id: str):
-    if id not in reservations:
-        raise HTTPException(status_code=404, detail="Reservation not found")
-    return reservations[id]
-
-@app.post("/api/v1/payments/process")
-def process_payment(payment_data: dict):
-    # Mock payment gateway logic
-    return {"status": "success", "transaction_id": str(uuid.uuid4())}
+@app.patch("/api/v1/ui-theme")
+def update_theme(config: ThemeConfig):
+    if config.button_id not in theme_db:
+        raise HTTPException(status_code=404, detail="Button ID not found")
+    theme_db[config.button_id] = config
+    return {"status": "updated", "data": config}
