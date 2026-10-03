@@ -4,40 +4,29 @@ from main import app
 
 client = TestClient(app)
 
-def test_get_site_config():
-    response = client.get("/api/v1/site-config")
+def test_health_check():
+    response = client.get("/api/health")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert response.json()["status"] == "healthy"
 
-def test_post_lead_capture_success():
-    payload = {
-        "name": "John Doe",
-        "email": "john@example.com",
-        "property_interest": "Luxury Villa"
-    }
-    response = client.post("/api/v1/lead-capture", json=payload)
+def test_get_analytics():
+    response = client.get("/api/analytics")
     assert response.status_code == 200
-    assert response.json()["status"] == "success"
+    data = response.json()
+    assert "total_items" in data
+    assert "average_score" in data
+    assert isinstance(data["total_items"], int)
 
-def test_patch_ui_theme_success():
+def test_create_review():
     payload = {
-        "button_id": "primary",
-        "hex_color_code": "#ff0000",
-        "hover_state_color": "#cc0000",
-        "section_anchor": "#contact",
-        "is_active": True
+        "title": "Test Product",
+        "status": "active",
+        "score": 4.5
     }
-    response = client.patch("/api/v1/ui-theme", json=payload)
+    response = client.post("/api/reviews", json=payload)
     assert response.status_code == 200
-    assert response.json()["data"]["hex_color_code"] == "#ff0000"
-
-def test_patch_ui_theme_not_found():
-    payload = {
-        "button_id": "non-existent",
-        "hex_color_code": "#000000",
-        "hover_state_color": "#000000",
-        "section_anchor": "#",
-        "is_active": True
-    }
-    response = client.patch("/api/v1/ui-theme", json=payload)
-    assert response.status_code == 404
+    data = response.json()
+    assert data["title"] == "Test Product"
+    assert data["score"] == 4.5
+    assert "id" in data
+    assert "timestamp" in data

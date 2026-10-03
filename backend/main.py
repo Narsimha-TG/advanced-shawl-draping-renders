@@ -1,46 +1,48 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
+from datetime import datetime
+import uuid
 
-app = FastAPI()
+app = FastAPI(title="Descriptif Produit Formel Persuasif API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class ThemeConfig(BaseModel):
-    button_id: str
-    hex_color_code: str
-    hover_state_color: str
-    section_anchor: str
-    is_active: bool
-
-class LeadCapture(BaseModel):
-    name: str
-    email: str
-    property_interest: str
+class ProductReview(BaseModel):
+    id: str = None
+    title: str
+    status: str
+    score: float
+    timestamp: str = None
 
 # In-memory seed data
-theme_db = {
-    "primary": {"button_id": "primary", "hex_color_code": "#0056b3", "hover_state_color": "#004494", "section_anchor": "#contact", "is_active": True}
-}
+db = [
+    {"id": "1", "title": "Premium Wireless Headphones", "status": "active", "score": 4.8, "timestamp": "2023-10-27T10:00:00Z"},
+    {"id": "2", "title": "Ergonomic Office Chair", "status": "pending", "score": 4.2, "timestamp": "2023-10-27T11:30:00Z"}
+]
 
-@app.get("/api/v1/site-config")
-def get_site_config():
-    return list(theme_db.values())
+@app.get("/api/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
-@app.post("/api/v1/lead-capture")
-def capture_lead(lead: LeadCapture):
-    # Logic to process lead (e.g., send email or save to DB)
-    return {"status": "success", "message": "Lead captured successfully"}
+@app.get("/api/analytics")
+def get_analytics():
+    avg_score = sum(item["score"] for item in db) / len(db) if db else 0
+    return {"total_items": len(db), "average_score": avg_score}
 
-@app.patch("/api/v1/ui-theme")
-def update_theme(config: ThemeConfig):
-    if config.button_id not in theme_db:
-        raise HTTPException(status_code=404, detail="Button ID not found")
-    theme_db[config.button_id] = config
-    return {"status": "updated", "data": config}
+@app.post("/api/reviews", response_model=ProductReview)
+def create_review(review: ProductReview):
+    review.id = str(uuid.uuid4())
+    review.timestamp = datetime.utcnow().isoformat()
+    db.append(review.dict())
+    return review
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
