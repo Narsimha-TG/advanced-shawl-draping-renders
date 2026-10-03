@@ -2,10 +2,10 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import date
 import uuid
 
-app = FastAPI(title="Custom Welded Steel Tubing API")
+app = FastAPI(title="Luxury Hotel Booking API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,34 +14,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Order(BaseModel):
-    order_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    cad_file_hash: str
-    material_spec: str
-    tolerance_threshold: float
-    status: str = "Pending"
-    budget_allocation: float
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+# In-memory data store
+hotels = [
+    {"id": "1", "property_name": "The Grand Azure", "room_type": "Suite", "price_per_night": 1200, "availability_status": True},
+    {"id": "2", "property_name": "Midnight Palms", "room_type": "Villa", "price_per_night": 2500, "availability_status": True}
+]
 
-# In-memory storage
-db = []
+reservations = {}
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+class Reservation(BaseModel):
+    property_id: str
+    check_in_date: date
+    check_out_date: date
+    guest_details: dict
 
-@app.get("/api/analytics")
-def get_analytics():
-    return {"total_orders": len(db), "active_fabrication": len([o for o in db if o.status == "Fabricating"])}
+@app.get("/api/v1/hotels")
+def get_hotels():
+    return hotels
 
-@app.post("/api/orders/submit", status_code=status.HTTP_201_CREATED)
-def submit_order(order: Order):
-    db.append(order)
-    return {"order_id": order.order_id, "message": "Order submitted successfully"}
+@app.get("/api/v1/hotels/{id}")
+def get_hotel(id: str):
+    hotel = next((h for h in hotels if h["id"] == id), None)
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Property not found")
+    return hotel
 
-@app.get("/api/orders/{id}/status")
-def get_order_status(id: str):
-    order = next((o for o in db if o.order_id == id), None)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return {"order_id": order.order_id, "status": order.status}
+@app.post("/api/v1/reservations", status_code=status.HTTP_201_CREATED)
+def create_reservation(res: Reservation):
+    res_id = str(uuid.uuid4())
+    reservations[res_id] = {**res.dict(), "id": res_id, "payment_status": "pending"}
+    return {"id": res_id, "status": "created"}
+
+@app.get("/api/v1/reservations/{id}")
+def get_reservation(id: str):
+    if id not in reservations:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    return reservations[id]
+
+@app.post("/api/v1/payments/process")
+def process_payment(payment_data: dict):
+    # Mock payment gateway logic
+    return {"status": "success", "transaction_id": str(uuid.uuid4())}

@@ -4,29 +4,28 @@ from main import app
 
 client = TestClient(app)
 
-def test_health_check():
-    response = client.get("/api/health")
+def test_get_hotels():
+    response = client.get("/api/v1/hotels")
     assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+    assert isinstance(response.json(), list)
 
-def test_get_analytics():
-    response = client.get("/api/analytics")
-    assert response.status_code == 200
-    assert "total_orders" in response.json()
-    assert "active_fabrication" in response.json()
-
-def test_submit_order():
+def test_create_reservation_success():
     payload = {
-        "cad_file_hash": "a1b2c3d4e5f6",
-        "material_spec": "ASTM A513",
-        "tolerance_threshold": 0.005,
-        "budget_allocation": 1500.00
+        "property_id": "1",
+        "check_in_date": "2023-12-01",
+        "check_out_date": "2023-12-05",
+        "guest_details": {"name": "John Doe", "email": "john@example.com"}
     }
-    response = client.post("/api/orders/submit", json=payload)
+    response = client.post("/api/v1/reservations", json=payload)
     assert response.status_code == 201
-    assert "order_id" in response.json()
-    assert response.json()["message"] == "Order submitted successfully"
+    assert "id" in response.json()
 
-def test_get_order_status_not_found():
-    response = client.get("/api/orders/non-existent-id/status")
+def test_process_payment():
+    payload = {"reservation_id": "test-id", "amount": 1200}
+    response = client.post("/api/v1/payments/process", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+def test_get_nonexistent_reservation():
+    response = client.get("/api/v1/reservations/invalid-uuid")
     assert response.status_code == 404
